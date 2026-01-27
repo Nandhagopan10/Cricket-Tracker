@@ -299,7 +299,7 @@ class _LiveSessionDashboardInitialPageState
                       title: 'Bat Speed',
                       currentValue: currentBatSpeed,
                       peakValue: peakBatSpeed,
-                      maxValue: 60.0,
+                      maxValue: 120.0,
                       unit: 'km/h',
                       color: theme.colorScheme.primary,
                     ),
