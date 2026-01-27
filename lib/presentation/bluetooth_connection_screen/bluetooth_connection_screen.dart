@@ -7,6 +7,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../../core/app_export.dart';
 import '../../core/bluetooth_service.dart';
+import '../../core/telemetry_service.dart';
 import '../../../widgets/custom_app_bar.dart' as custom_app_bar;
 import '../../../widgets/custom_icon_widget.dart';
 import 'widgets/connected_device_card_widget.dart';
@@ -200,6 +201,20 @@ class _BluetoothConnectionScreenState extends State<BluetoothConnectionScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
+    }
+
+    // Start telemetry subscription (non-blocking) for BLE-backed devices
+    if (device.containsKey('scanResult') &&
+        device['scanResult'] is ScanResult) {
+      final scanResult = device['scanResult'] as ScanResult;
+      try {
+        await TelemetryService().startForDevice(scanResult.device);
+        // ignore: avoid_print
+        print('[Telemetry] started for ${scanResult.device.id.id}');
+      } catch (e) {
+        // ignore: avoid_print
+        print('[Telemetry] failed to start: $e');
+      }
     }
 
     // Navigate to Live Dashboard after successful connection

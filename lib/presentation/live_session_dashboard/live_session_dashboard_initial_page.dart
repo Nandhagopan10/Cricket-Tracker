@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../core/telemetry_service.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_icon_widget.dart';
 import 'widgets/metric_card_widget.dart';
@@ -43,6 +44,7 @@ class _LiveSessionDashboardInitialPageState
   List<double> releaseVelocityTrend = [];
 
   Timer? metricsUpdateTimer;
+  StreamSubscription<TelemetryData>? _telemetrySub;
 
   @override
   void initState() {
@@ -61,7 +63,7 @@ class _LiveSessionDashboardInitialPageState
     metricsUpdateTimer = Timer.periodic(const Duration(milliseconds: 50), (
       timer,
     ) {
-      if (isSessionActive && mounted) {
+      if (isSessionActive && mounted && _telemetrySub == null) {
         setState(() {
           currentBatSpeed =
               45.0 + (DateTime.now().millisecondsSinceEpoch % 100) / 10;
@@ -105,6 +107,33 @@ class _LiveSessionDashboardInitialPageState
     setState(() {
       isSessionActive = !isSessionActive;
       if (isSessionActive) {
+        // Subscribe to telemetry stream when session starts
+        _telemetrySub = TelemetryService().stream.listen((t) {
+          if (!mounted) return;
+          setState(() {
+            currentBatSpeed = t.batSpeed;
+            if (t.batSpeed > peakBatSpeed) peakBatSpeed = t.batSpeed;
+            currentImpactSpeed = t.impactSpeed;
+            if (t.impactSpeed > peakImpactSpeed)
+              peakImpactSpeed = t.impactSpeed;
+            currentReleaseVelocity = t.releaseSpeed;
+            if (t.releaseSpeed > peakReleaseVelocity)
+              peakReleaseVelocity = t.releaseSpeed;
+            releaseAngle = t.releaseAngle;
+            swingAngle = t.swingAngle;
+            rotationSpeed = t.rotationSpeed;
+
+            batSpeedTrend.add(currentBatSpeed);
+            impactSpeedTrend.add(currentImpactSpeed);
+            releaseVelocityTrend.add(currentReleaseVelocity);
+
+            if (batSpeedTrend.length > 20) batSpeedTrend.removeAt(0);
+            if (impactSpeedTrend.length > 20) impactSpeedTrend.removeAt(0);
+            if (releaseVelocityTrend.length > 20)
+              releaseVelocityTrend.removeAt(0);
+          });
+        });
+
         sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
           if (mounted) {
             setState(() => sessionDuration++);
@@ -112,6 +141,9 @@ class _LiveSessionDashboardInitialPageState
         });
       } else {
         sessionTimer?.cancel();
+        // Unsubscribe from telemetry when session stops
+        _telemetrySub?.cancel();
+        _telemetrySub = null;
       }
     });
   }
@@ -148,6 +180,8 @@ class _LiveSessionDashboardInitialPageState
                 batSpeedTrend.clear();
                 impactSpeedTrend.clear();
                 releaseVelocityTrend.clear();
+                _telemetrySub?.cancel();
+                _telemetrySub = null;
               });
               Navigator.pop(context);
             },
