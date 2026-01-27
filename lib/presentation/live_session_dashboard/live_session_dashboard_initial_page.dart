@@ -1,0 +1,350 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:sizer/sizer.dart';
+
+import '../../../core/app_export.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/custom_icon_widget.dart';
+import 'widgets/metric_card_widget.dart';
+import 'widgets/performance_gauge_widget.dart';
+import 'widgets/session_timer_widget.dart';
+import 'widgets/swing_summary_widget.dart';
+
+class LiveSessionDashboardInitialPage extends StatefulWidget {
+  const LiveSessionDashboardInitialPage({super.key});
+
+  @override
+  State<LiveSessionDashboardInitialPage> createState() =>
+      _LiveSessionDashboardInitialPageState();
+}
+
+class _LiveSessionDashboardInitialPageState
+    extends State<LiveSessionDashboardInitialPage> {
+  bool isConnected = true;
+  bool isSessionActive = false;
+  int sessionDuration = 0;
+  Timer? sessionTimer;
+  double packetUpdateRate = 58.5;
+
+  // Real-time performance metrics
+  double currentBatSpeed = 0.0;
+  double peakBatSpeed = 0.0;
+  double currentImpactSpeed = 0.0;
+  double peakImpactSpeed = 0.0;
+  double currentReleaseVelocity = 0.0;
+  double peakReleaseVelocity = 0.0;
+  double releaseAngle = 0.0;
+  double swingAngle = 0.0;
+  double rotationSpeed = 0.0;
+
+  List<double> batSpeedTrend = [];
+  List<double> impactSpeedTrend = [];
+  List<double> releaseVelocityTrend = [];
+
+  Timer? metricsUpdateTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startMetricsSimulation();
+  }
+
+  @override
+  void dispose() {
+    sessionTimer?.cancel();
+    metricsUpdateTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startMetricsSimulation() {
+    metricsUpdateTimer = Timer.periodic(const Duration(milliseconds: 50), (
+      timer,
+    ) {
+      if (isSessionActive && mounted) {
+        setState(() {
+          currentBatSpeed =
+              45.0 + (DateTime.now().millisecondsSinceEpoch % 100) / 10;
+          currentImpactSpeed =
+              85.0 + (DateTime.now().millisecondsSinceEpoch % 150) / 10;
+          currentReleaseVelocity =
+              120.0 + (DateTime.now().millisecondsSinceEpoch % 200) / 10;
+
+          if (currentBatSpeed > peakBatSpeed) peakBatSpeed = currentBatSpeed;
+          if (currentImpactSpeed > peakImpactSpeed) {
+            peakImpactSpeed = currentImpactSpeed;
+          }
+          if (currentReleaseVelocity > peakReleaseVelocity) {
+            peakReleaseVelocity = currentReleaseVelocity;
+          }
+
+          releaseAngle =
+              35.0 + (DateTime.now().millisecondsSinceEpoch % 50) / 10;
+          swingAngle = 42.0 + (DateTime.now().millisecondsSinceEpoch % 60) / 10;
+          rotationSpeed =
+              2800.0 + (DateTime.now().millisecondsSinceEpoch % 400);
+
+          batSpeedTrend.add(currentBatSpeed);
+          impactSpeedTrend.add(currentImpactSpeed);
+          releaseVelocityTrend.add(currentReleaseVelocity);
+
+          if (batSpeedTrend.length > 20) batSpeedTrend.removeAt(0);
+          if (impactSpeedTrend.length > 20) impactSpeedTrend.removeAt(0);
+          if (releaseVelocityTrend.length > 20) {
+            releaseVelocityTrend.removeAt(0);
+          }
+
+          packetUpdateRate =
+              55.0 + (DateTime.now().millisecondsSinceEpoch % 80) / 10;
+        });
+      }
+    });
+  }
+
+  void _toggleSession() {
+    setState(() {
+      isSessionActive = !isSessionActive;
+      if (isSessionActive) {
+        sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (mounted) {
+            setState(() => sessionDuration++);
+          }
+        });
+      } else {
+        sessionTimer?.cancel();
+      }
+    });
+  }
+
+  void _stopSession() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Stop Session',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        content: Text(
+          'Are you sure you want to stop the current session?',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                isSessionActive = false;
+                sessionTimer?.cancel();
+                sessionDuration = 0;
+                currentBatSpeed = 0.0;
+                currentImpactSpeed = 0.0;
+                currentReleaseVelocity = 0.0;
+                peakBatSpeed = 0.0;
+                peakImpactSpeed = 0.0;
+                peakReleaseVelocity = 0.0;
+                batSpeedTrend.clear();
+                impactSpeedTrend.clear();
+                releaseVelocityTrend.clear();
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Stop'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _refreshData() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) {
+      setState(() {
+        packetUpdateRate = 58.5;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        CustomAppBar(
+          title: 'Live Session',
+          showConnectionStatus: true,
+          isConnected: isConnected,
+          onConnectionTap: () {
+            Navigator.of(
+              context,
+              rootNavigator: true,
+            ).pushNamed('/bluetooth-connection-screen');
+          },
+          actions: [
+            IconButton(
+              icon: CustomIconWidget(
+                iconName: 'timeline',
+                color: theme.colorScheme.primary,
+                size: 24,
+              ),
+              onPressed: () {
+                Navigator.of(
+                  context,
+                  rootNavigator: true,
+                ).pushNamed('/motion-visualization-screen');
+              },
+              tooltip: '2D Visualization',
+            ),
+          ],
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _refreshData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SessionTimerWidget(
+                      duration: sessionDuration,
+                      packetRate: packetUpdateRate,
+                      isActive: isSessionActive,
+                    ),
+                    SizedBox(height: 3.h),
+
+                    // Start / Stop Session button
+                    Center(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6.w,
+                            vertical: 1.6.h,
+                          ),
+                          backgroundColor: isSessionActive
+                              ? Colors.red
+                              : Colors.green,
+                        ),
+                        icon: Icon(
+                          isSessionActive ? Icons.stop : Icons.play_arrow,
+                          size: 18,
+                        ),
+                        label: Text(
+                          isSessionActive ? 'Stop Session' : 'Start Session',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        onPressed: () {
+                          if (isSessionActive) {
+                            _stopSession();
+                          } else {
+                            _toggleSession();
+                          }
+                        },
+                      ),
+                    ),
+
+                    SizedBox(height: 3.h),
+
+                    Text(
+                      'Performance Metrics',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+
+                    PerformanceGaugeWidget(
+                      title: 'Bat Speed',
+                      currentValue: currentBatSpeed,
+                      peakValue: peakBatSpeed,
+                      maxValue: 60.0,
+                      unit: 'km/h',
+                      color: theme.colorScheme.primary,
+                    ),
+                    SizedBox(height: 2.h),
+
+                    PerformanceGaugeWidget(
+                      title: 'Impact Speed',
+                      currentValue: currentImpactSpeed,
+                      peakValue: peakImpactSpeed,
+                      maxValue: 100.0,
+                      unit: 'km/h',
+                      color: theme.colorScheme.secondary,
+                    ),
+                    SizedBox(height: 2.h),
+
+                    PerformanceGaugeWidget(
+                      title: 'Release Velocity',
+                      currentValue: currentReleaseVelocity,
+                      peakValue: peakReleaseVelocity,
+                      maxValue: 140.0,
+                      unit: 'km/h',
+                      color: theme.colorScheme.tertiary,
+                    ),
+                    SizedBox(height: 3.h),
+
+                    Text(
+                      'Additional Metrics',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: MetricCardWidget(
+                            title: 'Release Angle',
+                            value: releaseAngle,
+                            unit: '°',
+                            trendData: releaseVelocityTrend,
+                            color: const Color(0xFF0D47A1),
+                          ),
+                        ),
+                        SizedBox(width: 3.w),
+                        Expanded(
+                          child: MetricCardWidget(
+                            title: 'Swing Angle',
+                            value: swingAngle,
+                            unit: '°',
+                            trendData: batSpeedTrend,
+                            color: const Color(0xFF1B5E20),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 2.h),
+
+                    MetricCardWidget(
+                      title: 'Rotation Speed',
+                      value: rotationSpeed,
+                      unit: 'RPM',
+                      trendData: impactSpeedTrend,
+                      color: const Color(0xFFFF6F00),
+                    ),
+                    SizedBox(height: 3.h),
+
+                    SwingSummaryWidget(
+                      totalSwings: isSessionActive ? (sessionDuration ~/ 5) : 0,
+                      consistencyScore: 87.5,
+                    ),
+                    SizedBox(height: 10.h),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
