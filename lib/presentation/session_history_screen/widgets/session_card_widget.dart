@@ -40,9 +40,22 @@ class SessionCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isViewed = session["isViewed"] as bool;
-    final date = session["date"] as DateTime;
-    final playerRole = session["playerRole"] as String;
+    T _safe<T>(dynamic v, T fallback) {
+      try {
+        if (v is T) return v;
+        if (T == String) return v?.toString() as T? ?? fallback;
+        if (T == int)
+          return int.tryParse(v?.toString() ?? '') as T? ?? fallback;
+        if (T == double)
+          return double.tryParse(v?.toString() ?? '') as T? ?? fallback;
+        if (T == bool) return (v == true) as T? ?? fallback;
+      } catch (_) {}
+      return fallback;
+    }
+
+    final isViewed = _safe<bool>(session['isViewed'], false);
+    final date = _safe<DateTime>(session['date'], DateTime.now());
+    final playerRole = _safe<String>(session['playerRole'], 'Player');
 
     return Slidable(
       enabled: !isMultiSelectMode,
@@ -118,11 +131,16 @@ class SessionCardWidget extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: CustomImageWidget(
-                        imageUrl: session["thumbnail"] as String,
+                        imageUrl:
+                            (session["thumbnail"] ??
+                                    'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600')
+                                .toString(),
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
-                        semanticLabel: session["semanticLabel"] as String,
+                        semanticLabel:
+                            (session["semanticLabel"] ?? 'Session thumbnail')
+                                .toString(),
                       ),
                     ),
                     if (!isViewed)
@@ -150,7 +168,7 @@ class SessionCardWidget extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              session["playerName"] as String,
+                              (session["playerName"] ?? 'Player').toString(),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -207,7 +225,7 @@ class SessionCardWidget extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            session["duration"] as String,
+                            (session["duration"] ?? '').toString(),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -216,7 +234,8 @@ class SessionCardWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        session["sessionType"] as String,
+                        (session["sessionType"] ?? 'Recorded Session')
+                            .toString(),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w500,
@@ -238,16 +257,16 @@ class SessionCardWidget extends StatelessWidget {
   }
 
   Widget _buildMetricsRow(ThemeData theme) {
-    final playerRole = session["playerRole"] as String;
+    final role = (session["playerRole"] ?? 'Player').toString();
 
-    if (playerRole == "Batsman" || playerRole == "All-rounder") {
+    if (role == "Batsman" || role == "All-rounder") {
       return Row(
         children: [
           Expanded(
             child: _buildMetricItem(
               theme,
               'Swings',
-              session["totalSwings"].toString(),
+              (session["totalSwings"] ?? 0).toString(),
               Icons.sports_cricket,
             ),
           ),
@@ -255,7 +274,7 @@ class SessionCardWidget extends StatelessWidget {
             child: _buildMetricItem(
               theme,
               'Peak Speed',
-              '${(session["peakBatSpeed"] as double).toStringAsFixed(1)} km/h',
+              '${(double.tryParse(session["peakBatSpeed"]?.toString() ?? '0') ?? 0).toStringAsFixed(1)} km/h',
               Icons.speed,
             ),
           ),
@@ -268,7 +287,7 @@ class SessionCardWidget extends StatelessWidget {
             child: _buildMetricItem(
               theme,
               'Deliveries',
-              session["totalSwings"].toString(),
+              (session["totalSwings"] ?? 0).toString(),
               Icons.sports_cricket,
             ),
           ),
@@ -276,7 +295,7 @@ class SessionCardWidget extends StatelessWidget {
             child: _buildMetricItem(
               theme,
               'Peak Speed',
-              '${(session["peakReleaseSpeed"] as double).toStringAsFixed(1)} km/h',
+              '${(double.tryParse(session["peakReleaseSpeed"]?.toString() ?? '0') ?? 0).toStringAsFixed(1)} km/h',
               Icons.speed,
             ),
           ),
@@ -328,7 +347,8 @@ class SessionCardWidget extends StatelessWidget {
   }
 
   Widget _buildProgressBar(ThemeData theme) {
-    final consistency = session["consistency"] as double;
+    final consistency =
+        double.tryParse(session["consistency"]?.toString() ?? '0') ?? 0.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

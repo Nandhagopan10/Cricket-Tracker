@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+import 'core/models/profile.dart';
+import 'core/data/profiles_repository.dart';
+import 'core/data/sessions_repository.dart';
 
 import '../core/app_export.dart';
 import '../widgets/custom_error_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  Hive.registerAdapter(ProfileAdapter());
+  await Hive.openBox<Profile>(ProfilesRepository.boxName);
+  await Hive.openBox(SessionsRepository.boxName);
 
   bool hasShownError = false;
 

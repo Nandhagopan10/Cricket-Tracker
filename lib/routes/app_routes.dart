@@ -5,6 +5,8 @@ import '../presentation/session_summary_screen/session_summary_screen.dart';
 import '../presentation/session_history_screen/session_history_screen.dart';
 import '../presentation/onboarding_flow/onboarding_flow.dart';
 import '../presentation/live_session_dashboard/live_session_dashboard.dart';
+import '../presentation/create_profile_screen/create_profile_screen.dart';
+import '../presentation/profiles_screen/profiles_list_screen.dart';
 
 class AppRoutes {
   // TODO: Add your routes here
@@ -15,6 +17,8 @@ class AppRoutes {
   static const String sessionHistory = '/session-history-screen';
   static const String onboardingFlow = '/onboarding-flow';
   static const String liveSessionDashboard = '/live-session-dashboard';
+  static const String createProfile = '/create-profile-screen';
+  static const String profiles = '/player-profile-screen';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const OnboardingFlow(),
@@ -24,6 +28,8 @@ class AppRoutes {
     sessionHistory: (context) => const SessionHistoryScreen(),
     onboardingFlow: (context) => const OnboardingFlow(),
     liveSessionDashboard: (context) => const LiveSessionDashboard(),
+    createProfile: (context) => const CreateProfileScreen(),
+    profiles: (context) => const ProfilesListScreen(),
     // TODO: Add your other routes here
   };
 }

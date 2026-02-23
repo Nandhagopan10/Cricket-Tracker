@@ -5,6 +5,8 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../core/telemetry_service.dart';
+import '../../../core/data/profiles_repository.dart';
+import '../../../core/data/sessions_repository.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_icon_widget.dart';
 import 'widgets/metric_card_widget.dart';
@@ -26,6 +28,7 @@ class _LiveSessionDashboardInitialPageState
   bool isSessionActive = false;
   int sessionDuration = 0;
   Timer? sessionTimer;
+  DateTime? _sessionStartTime;
   double packetUpdateRate = 58.5;
 
   // Real-time performance metrics
@@ -107,6 +110,7 @@ class _LiveSessionDashboardInitialPageState
     setState(() {
       isSessionActive = !isSessionActive;
       if (isSessionActive) {
+        _sessionStartTime = DateTime.now();
         // Subscribe to telemetry stream when session starts
         _telemetrySub = TelemetryService().stream.listen((t) {
           if (!mounted) return;
@@ -170,6 +174,38 @@ class _LiveSessionDashboardInitialPageState
               setState(() {
                 isSessionActive = false;
                 sessionTimer?.cancel();
+                final endTime = DateTime.now();
+                final startTime =
+                    _sessionStartTime ??
+                    endTime.subtract(Duration(seconds: sessionDuration));
+
+                // Build session map
+                final session = {
+                  'date': startTime,
+                  'endDate': endTime,
+                  'duration': '${sessionDuration} sec',
+                  'playerName':
+                      ProfilesRepository().getDefaultProfile()?.name ??
+                      'Player',
+                  'playerRole':
+                      ProfilesRepository().getDefaultProfile()?.role ??
+                      'Unknown',
+                  'totalSwings': isSessionActive
+                      ? (sessionDuration ~/ 5)
+                      : (sessionDuration ~/ 5),
+                  'peakBatSpeed': peakBatSpeed,
+                  'peakImpactSpeed': peakImpactSpeed,
+                  'peakReleaseSpeed': peakReleaseVelocity,
+                  'thumbnail': ProfilesRepository()
+                      .getDefaultProfile()
+                      ?.avatarUrl,
+                  'sessionType': 'Live Recording',
+                  'insights': '',
+                  'isViewed': false,
+                };
+
+                SessionsRepository().saveSession(session);
+
                 sessionDuration = 0;
                 currentBatSpeed = 0.0;
                 currentImpactSpeed = 0.0;

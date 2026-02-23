@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_icon_widget.dart';
 import './widgets/empty_state_widget.dart';
 import './widgets/session_card_widget.dart';
 import './widgets/session_filter_widget.dart';
+import '../../core/data/sessions_repository.dart';
 
 /// Session History Screen - Displays chronological list of completed cricket sessions
 /// with date-wise organization, replay functionality, and comprehensive performance tracking.
@@ -29,6 +31,8 @@ class SessionHistoryScreen extends StatefulWidget {
 class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  dynamic _sessionsListenable;
+  VoidCallback? _sessionsListener;
 
   bool _isLoading = false;
   bool _isMultiSelectMode = false;
@@ -45,11 +49,24 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
   void initState() {
     super.initState();
     _initializeMockData();
+    // Listen for persisted sessions changes
+    try {
+      final box = Hive.box(SessionsRepository.boxName);
+      // Use ValueListenable from hive_flutter and keep a reference so we can remove the listener
+      _sessionsListenable = box.listenable();
+      _sessionsListener = () => _loadSavedSessions();
+      _sessionsListenable?.addListener(_sessionsListener!);
+    } catch (_) {}
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    if (_sessionsListenable != null && _sessionsListener != null) {
+      try {
+        _sessionsListenable!.removeListener(_sessionsListener!);
+      } catch (_) {}
+    }
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -165,6 +182,77 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
     ];
 
     _filteredSessions = List.from(_allSessions);
+    _loadSavedSessions();
+  }
+
+  void _loadSavedSessions() {
+    try {
+      final saved = SessionsRepository().getAllSessions();
+      // Map saved session entries to the same keys used by the UI
+      final mapped = saved.map((s) {
+        final rawId = s['id'];
+        final intId = rawId is int
+            ? rawId
+            : (rawId != null
+                  ? rawId.toString().hashCode
+                  : DateTime.now().millisecondsSinceEpoch);
+
+        final date = s['date'] is DateTime
+            ? s['date'] as DateTime
+            : (s['date'] != null
+                  ? DateTime.tryParse(s['date'].toString()) ?? DateTime.now()
+                  : DateTime.now());
+
+        double _toDouble(dynamic v) {
+          if (v == null) return 0.0;
+          if (v is double) return v;
+          if (v is int) return v.toDouble();
+          final parsed = double.tryParse(v.toString());
+          return parsed ?? 0.0;
+        }
+
+        int _toInt(dynamic v) {
+          if (v == null) return 0;
+          if (v is int) return v;
+          if (v is double) return v.toInt();
+          final parsed = int.tryParse(v.toString());
+          return parsed ?? 0;
+        }
+
+        final thumbnail =
+            s['thumbnail'] ??
+            'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600';
+
+        return {
+          'id': intId,
+          'date': date,
+          'duration': s['duration'] ?? '${DateFormat('mm').format(date)} min',
+          'playerName': (s['playerName'] ?? 'Player').toString(),
+          'playerRole': (s['playerRole'] ?? 'Batsman').toString(),
+          'totalSwings': _toInt(s['totalSwings']),
+          'peakBatSpeed': _toDouble(s['peakBatSpeed']),
+          'peakImpactSpeed': _toDouble(s['peakImpactSpeed']),
+          'peakReleaseSpeed': _toDouble(s['peakReleaseSpeed']),
+          'avgBatSpeed': _toDouble(s['avgBatSpeed']),
+          'avgImpactSpeed': _toDouble(s['avgImpactSpeed']),
+          'consistency': _toDouble(s['consistency']).clamp(0.0, 1.0),
+          'thumbnail': thumbnail,
+          'semanticLabel': s['semanticLabel'] ?? 'Player session thumbnail',
+          'sessionType': s['sessionType'] ?? 'Recorded Session',
+          'insights': s['insights'] ?? '',
+          'isViewed': s['isViewed'] ?? false,
+        };
+      }).toList();
+
+      setState(() {
+        // Prepend saved sessions to the list so they appear first
+        _allSessions = [
+          ...mapped,
+          ..._allSessions.where((m) => m['id'] is int),
+        ];
+        _applyFilters();
+      });
+    } catch (_) {}
   }
 
   void _onScroll() {

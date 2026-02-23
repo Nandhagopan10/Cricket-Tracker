@@ -16,6 +16,10 @@ dependencies:
   google_fonts: ^6.1.0       # Required for typography (replaces local fonts)
   shared_preferences: ^2.2.2 # Required for local data storage
   web: ^1.1.1
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  uuid: ^4.1.0
+  image_picker: ^0.8.7+4
   
   # Feature dependencies - safe to modify
   cached_network_image: ^3.3.1
