@@ -41,10 +41,12 @@ class _LiveSessionDashboardInitialPageState
   double releaseAngle = 0.0;
   double swingAngle = 0.0;
   double rotationSpeed = 0.0;
+  double releaseTime = 0.0;
 
   List<double> batSpeedTrend = [];
   List<double> impactSpeedTrend = [];
   List<double> releaseVelocityTrend = [];
+  List<double> releaseTimeTrend = [];
 
   Timer? metricsUpdateTimer;
   StreamSubscription<TelemetryData>? _telemetrySub;
@@ -88,6 +90,7 @@ class _LiveSessionDashboardInitialPageState
           swingAngle = 42.0 + (DateTime.now().millisecondsSinceEpoch % 60) / 10;
           rotationSpeed =
               2800.0 + (DateTime.now().millisecondsSinceEpoch % 400);
+          releaseTime = 10.0 + (DateTime.now().millisecondsSinceEpoch % 50) / 2;
 
           batSpeedTrend.add(currentBatSpeed);
           impactSpeedTrend.add(currentImpactSpeed);
@@ -98,6 +101,8 @@ class _LiveSessionDashboardInitialPageState
           if (releaseVelocityTrend.length > 20) {
             releaseVelocityTrend.removeAt(0);
           }
+          releaseTimeTrend.add(releaseTime);
+          if (releaseTimeTrend.length > 20) releaseTimeTrend.removeAt(0);
 
           packetUpdateRate =
               55.0 + (DateTime.now().millisecondsSinceEpoch % 80) / 10;
@@ -127,6 +132,8 @@ class _LiveSessionDashboardInitialPageState
             swingAngle = t.swingAngle;
             rotationSpeed = t.rotationSpeed;
 
+            // releaseTime is not provided by telemetry currently; keep simulated value
+
             batSpeedTrend.add(currentBatSpeed);
             impactSpeedTrend.add(currentImpactSpeed);
             releaseVelocityTrend.add(currentReleaseVelocity);
@@ -135,6 +142,7 @@ class _LiveSessionDashboardInitialPageState
             if (impactSpeedTrend.length > 20) impactSpeedTrend.removeAt(0);
             if (releaseVelocityTrend.length > 20)
               releaseVelocityTrend.removeAt(0);
+            if (releaseTimeTrend.length > 20) releaseTimeTrend.removeAt(0);
           });
         });
 
@@ -394,12 +402,28 @@ class _LiveSessionDashboardInitialPageState
                     ),
                     SizedBox(height: 2.h),
 
-                    MetricCardWidget(
-                      title: 'Rotation Speed',
-                      value: rotationSpeed,
-                      unit: 'RPM',
-                      trendData: impactSpeedTrend,
-                      color: const Color(0xFFFF6F00),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: MetricCardWidget(
+                            title: 'Rotation Speed',
+                            value: rotationSpeed,
+                            unit: 'RPM',
+                            trendData: impactSpeedTrend,
+                            color: const Color(0xFFFF6F00),
+                          ),
+                        ),
+                        SizedBox(width: 3.w),
+                        Expanded(
+                          child: MetricCardWidget(
+                            title: 'Release Time',
+                            value: releaseTime,
+                            unit: 'ms',
+                            trendData: releaseTimeTrend,
+                            color: const Color(0xFF6A1B9A),
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(height: 3.h),
 
