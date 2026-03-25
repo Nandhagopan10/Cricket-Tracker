@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
@@ -187,7 +188,24 @@ class _LiveSessionDashboardInitialPageState
                     _sessionStartTime ??
                     endTime.subtract(Duration(seconds: sessionDuration));
 
-                // Build session map
+                // Build session map including raw trend series so playback shows real values
+                double _avg(List<double> arr) => arr.isEmpty
+                    ? 0.0
+                    : arr.reduce((a, b) => a + b) / arr.length;
+
+                double _std(List<double> arr) {
+                  if (arr.isEmpty) return 0.0;
+                  final mean = _avg(arr);
+                  final sumsq = arr
+                      .map((v) => (v - mean) * (v - mean))
+                      .reduce((a, b) => a + b);
+                  return math.sqrt(sumsq / arr.length);
+                }
+
+                final avgBat = _avg(batSpeedTrend);
+                final avgImpact = _avg(impactSpeedTrend);
+                final avgRelease = _avg(releaseVelocityTrend);
+
                 final session = {
                   'date': startTime,
                   'endDate': endTime,
@@ -204,6 +222,17 @@ class _LiveSessionDashboardInitialPageState
                   'peakBatSpeed': peakBatSpeed,
                   'peakImpactSpeed': peakImpactSpeed,
                   'peakReleaseSpeed': peakReleaseVelocity,
+                  'avgBatSpeed': avgBat,
+                  'avgImpactSpeed': avgImpact,
+                  'avgReleaseSpeed': avgRelease,
+                  'consistency': batSpeedTrend.isEmpty
+                      ? 0.0
+                      : (_std(batSpeedTrend) / (avgBat == 0 ? 1 : avgBat)),
+                  // include raw series for charts/playback
+                  'speedSeries': List<double>.from(batSpeedTrend),
+                  'impactSeries': List<double>.from(impactSpeedTrend),
+                  'releaseSeries': List<double>.from(releaseVelocityTrend),
+                  'releaseTimeSeries': List<double>.from(releaseTimeTrend),
                   'thumbnail': ProfilesRepository()
                       .getDefaultProfile()
                       ?.avatarUrl,

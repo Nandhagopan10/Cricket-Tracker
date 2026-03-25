@@ -236,6 +236,11 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
           'avgBatSpeed': _toDouble(s['avgBatSpeed']),
           'avgImpactSpeed': _toDouble(s['avgImpactSpeed']),
           'consistency': _toDouble(s['consistency']).clamp(0.0, 1.0),
+          // include raw series if available so the session summary can render real trends
+          'speedSeries': s['speedSeries'] ?? s['batSpeedTrend'] ?? [],
+          'impactSeries': s['impactSeries'] ?? [],
+          'releaseSeries': s['releaseSeries'] ?? [],
+          'releaseTimeSeries': s['releaseTimeSeries'] ?? [],
           'thumbnail': thumbnail,
           'semanticLabel': s['semanticLabel'] ?? 'Player session thumbnail',
           'sessionType': s['sessionType'] ?? 'Recorded Session',

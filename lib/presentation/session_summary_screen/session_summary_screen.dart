@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -25,8 +26,8 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
   bool _isExportingPDF = false;
   bool _isRefreshing = false;
 
-  // Mock session data
-  final Map<String, dynamic> _sessionData = {
+  // session data (populated from navigation arguments or falls back to mock)
+  Map<String, dynamic> _sessionData = {
     "sessionId": "SESSION_20260126_001",
     "date": "26 Jan 2026",
     "startTime": "14:30",
@@ -39,105 +40,145 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
     "sessionType": "Combined Practice",
   };
 
-  final List<Map<String, dynamic>> _performanceCards = [
-    {
-      "title": "Peak Bat Speed",
-      "value": "142.8",
-      "unit": "km/h",
-      "subtitle": "Highest recorded speed",
-      "icon": Icons.speed,
-      "color": Color(0xFF1B5E20),
-      "changePercentage": 8.5,
-    },
-    {
-      "title": "Avg Release Velocity",
-      "value": "128.4",
-      "unit": "km/h",
-      "subtitle": "Mean bowling speed",
-      "icon": Icons.sports_cricket,
-      "color": Color(0xFFFF6F00),
-      "changePercentage": -2.3,
-    },
-    {
-      "title": "Consistency Rating",
-      "value": "87",
-      "unit": "%",
-      "subtitle": "Performance stability",
-      "icon": Icons.trending_up,
-      "color": Color(0xFF0D47A1),
-      "changePercentage": 12.1,
-    },
-    {
-      "title": "Rotation Speed",
-      "value": "2450",
-      "unit": "rpm",
-      "subtitle": "Average ball rotation",
-      "icon": Icons.rotate_right,
-      "color": Color(0xFF2E7D32),
-      "changePercentage": 5.7,
-    },
-  ];
+  // Performance and metric builders use recorded session data if available
+  List<Map<String, dynamic>> _getPerformanceCards() {
+    final role = (_sessionData['playerRole'] ?? 'Player').toString();
+    final peakBat =
+        double.tryParse(_sessionData['peakBatSpeed']?.toString() ?? '0') ?? 0.0;
+    final avgRelease =
+        double.tryParse(_sessionData['avgReleaseSpeed']?.toString() ?? '0') ??
+        0.0;
+    final rotation =
+        double.tryParse(
+          _sessionData['peakRotationSpeed']?.toString() ??
+              _sessionData['avgRotationSpeed']?.toString() ??
+              '0',
+        ) ??
+        0.0;
 
-  final List<Map<String, dynamic>> _detailedMetrics = [
-    {
-      "label": "Total Swings",
-      "value": "87",
-      "unit": "",
-      "description": "Batting attempts",
-      "comparison": 15.2,
-    },
-    {
-      "label": "Average Bat Angle",
-      "value": "42.5",
-      "unit": "°",
-      "description": "Mean impact angle",
-      "comparison": -3.1,
-    },
-    {
-      "label": "Total Deliveries",
-      "value": "45",
-      "unit": "",
-      "description": "Bowling attempts",
-      "comparison": 8.9,
-    },
-    {
-      "label": "Release Time Consistency",
-      "value": "0.12",
-      "unit": "s",
-      "description": "Standard deviation",
-      "comparison": -18.5,
-    },
-    {
-      "label": "Peak Impact Speed",
-      "value": "156.2",
-      "unit": "km/h",
-      "description": "Maximum contact velocity",
-      "comparison": 6.4,
-    },
-    {
-      "label": "Average Release Angle",
-      "value": "38.7",
-      "unit": "°",
-      "description": "Mean bowling angle",
-      "comparison": 2.8,
-    },
-  ];
+    return [
+      {
+        "title": "Peak Bat Speed",
+        "value": peakBat.toStringAsFixed(1),
+        "unit": "km/h",
+        "subtitle": "Highest recorded speed",
+        "icon": Icons.speed,
+        "color": const Color(0xFF1B5E20),
+      },
+      {
+        "title": "Avg Release Velocity",
+        "value": avgRelease.toStringAsFixed(1),
+        "unit": "km/h",
+        "subtitle": "Mean bowling speed",
+        "icon": Icons.sports_cricket,
+        "color": const Color(0xFFFF6F00),
+      },
+      {
+        "title": "Consistency Rating",
+        "value":
+            ((double.tryParse(_sessionData['consistency']?.toString() ?? '0') ??
+                        0.0) *
+                    100)
+                .toStringAsFixed(0),
+        "unit": "%",
+        "subtitle": "Performance stability",
+        "icon": Icons.trending_up,
+        "color": const Color(0xFF0D47A1),
+      },
+      {
+        "title": "Rotation Speed",
+        "value": rotation.toStringAsFixed(0),
+        "unit": "rpm",
+        "subtitle": "Average rotation",
+        "icon": Icons.rotate_right,
+        "color": const Color(0xFF2E7D32),
+      },
+    ];
+  }
 
-  final List<Map<String, dynamic>> _speedChartData = List.generate(
-    20,
-    (index) => {
-      "value": 120 + (index % 5) * 8 + (index % 3) * 4,
-      "timestamp": index,
-    },
-  );
+  List<Map<String, dynamic>> _getDetailedMetrics() {
+    return [
+      {
+        "label": "Total Swings",
+        "value": (_sessionData['totalSwings'] ?? 0).toString(),
+        "unit": "",
+        "description": "Batting attempts",
+      },
+      {
+        "label": "Average Bat Angle",
+        "value": (_sessionData['avgBatAngle']?.toString() ?? '0'),
+        "unit": "°",
+        "description": "Mean impact angle",
+      },
+      {
+        "label": "Total Deliveries",
+        "value": (_sessionData['totalDeliveries'] ?? 0).toString(),
+        "unit": "",
+        "description": "Bowling attempts",
+      },
+      {
+        "label": "Release Time Consistency",
+        "value": (_sessionData['releaseTimeStd']?.toString() ?? '0'),
+        "unit": "s",
+        "description": "Standard deviation",
+      },
+      {
+        "label": "Peak Impact Speed",
+        "value": (_sessionData['peakImpactSpeed']?.toString() ?? '0'),
+        "unit": "km/h",
+        "description": "Maximum contact velocity",
+      },
+      {
+        "label": "Average Release Angle",
+        "value": (_sessionData['avgReleaseAngle']?.toString() ?? '0'),
+        "unit": "°",
+        "description": "Mean bowling angle",
+      },
+    ];
+  }
 
-  final List<Map<String, dynamic>> _angleChartData = List.generate(
-    20,
-    (index) => {
-      "value": 35 + (index % 4) * 5 + (index % 2) * 3,
-      "timestamp": index,
-    },
-  );
+  List<Map<String, dynamic>> _getSpeedChartData() {
+    // If raw telemetry array exists in session data, use it, otherwise fallback to a simple generated trend
+    final raw = _sessionData['speedSeries'];
+    if (raw is List) {
+      return raw
+          .map(
+            (e) => {
+              'value': double.tryParse(e?.toString() ?? '0') ?? 0,
+              'timestamp': raw.indexOf(e),
+            },
+          )
+          .toList();
+    }
+    return List.generate(
+      20,
+      (index) => {
+        "value": 120 + (index % 5) * 8 + (index % 3) * 4,
+        "timestamp": index,
+      },
+    );
+  }
+
+  List<Map<String, dynamic>> _getAngleChartData() {
+    final raw = _sessionData['angleSeries'];
+    if (raw is List) {
+      return raw
+          .map(
+            (e) => {
+              'value': double.tryParse(e?.toString() ?? '0') ?? 0,
+              'timestamp': raw.indexOf(e),
+            },
+          )
+          .toList();
+    }
+    return List.generate(
+      20,
+      (index) => {
+        "value": 35 + (index % 4) * 5 + (index % 2) * 3,
+        "timestamp": index,
+      },
+    );
+  }
 
   final List<Map<String, dynamic>> _insights = [
     {
@@ -172,6 +213,27 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Try to read session map passed via Navigator arguments. This ensures
+    // the screen displays the real recorded session passed from SessionHistoryScreen.
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      // Merge provided session data with existing defaults to keep keys safe
+      final merged = {..._sessionData, ...args};
+      // If the incoming session 'date' is a DateTime, format it to a readable string
+      final rawDate = merged['date'];
+      if (rawDate is DateTime) {
+        merged['date'] = DateFormat('dd MMM yyyy').format(rawDate);
+      } else if (rawDate is String) {
+        // keep as-is
+      } else if (merged['date'] != null) {
+        // fallback: try parse
+        final parsed = DateTime.tryParse(merged['date'].toString());
+        if (parsed != null)
+          merged['date'] = DateFormat('dd MMM yyyy').format(parsed);
+      }
+
+      _sessionData = merged;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -195,7 +257,7 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
               Navigator.of(
                 context,
                 rootNavigator: true,
-              ).pushNamed('/live-session-dashboard');
+              ).pushNamed(AppRoutes.sessionPlayback, arguments: _sessionData);
             },
             tooltip: 'Replay Session',
           ),
@@ -214,7 +276,7 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
                 SizedBox(height: 3.h),
                 _buildPerformanceCards(theme),
                 SizedBox(height: 3.h),
-                MetricsTableWidget(metrics: _detailedMetrics),
+                MetricsTableWidget(metrics: _getDetailedMetrics()),
                 SizedBox(height: 3.h),
                 _buildChartsSection(theme),
                 SizedBox(height: 3.h),
@@ -389,6 +451,8 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
   }
 
   Widget _buildPerformanceCards(ThemeData theme) {
+    final cards = _getPerformanceCards();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -408,17 +472,16 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
             mainAxisSpacing: 2.h,
             childAspectRatio: 0.85,
           ),
-          itemCount: _performanceCards.length,
+          itemCount: cards.length,
           itemBuilder: (context, index) {
-            final card = _performanceCards[index];
+            final card = cards[index];
             return PerformanceCardWidget(
               title: card['title'] as String,
-              value: card['value'] as String,
+              value: card['value'].toString(),
               unit: card['unit'] as String,
               subtitle: card['subtitle'] as String,
               accentColor: card['color'] as Color,
               icon: card['icon'] as IconData,
-              changePercentage: card['changePercentage'] as double?,
               onTap: () {
                 _showMetricDetails(context, card);
               },
@@ -442,14 +505,14 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
         SizedBox(height: 2.h),
         PerformanceChartWidget(
           title: 'Speed Variations',
-          dataPoints: _speedChartData,
+          dataPoints: _getSpeedChartData(),
           yAxisLabel: 'km/h',
           lineColor: const Color(0xFF1B5E20),
         ),
         SizedBox(height: 2.h),
         PerformanceChartWidget(
           title: 'Angle Consistency',
-          dataPoints: _angleChartData,
+          dataPoints: _getAngleChartData(),
           yAxisLabel: '°',
           lineColor: const Color(0xFF0D47A1),
         ),
@@ -544,11 +607,11 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
     try {
       await Share.share(
         'Check out my cricket training session summary!\n\n'
-        'Session: ${_sessionData['sessionId']}\n'
-        'Date: ${_sessionData['date']}\n'
-        'Duration: ${_sessionData['duration']}\n'
-        'Peak Bat Speed: 142.8 km/h\n'
-        'Consistency Rating: 87%\n\n'
+        'Session: ${_sessionData['sessionId'] ?? ''}\n'
+        'Date: ${_sessionData['date'] ?? ''}\n'
+        'Duration: ${_sessionData['duration'] ?? ''}\n'
+        'Peak Bat Speed: ${_sessionData['peakBatSpeed'] ?? ''} km/h\n'
+        'Consistency Rating: ${((_sessionData['consistency'] ?? 0.0) is double ? ((_sessionData['consistency'] as double) * 100).toStringAsFixed(0) : _sessionData['consistency'])}%\n\n'
         'Shared from CricketTracker App',
         subject: 'Cricket Training Session Summary',
       );
@@ -585,13 +648,26 @@ class _SessionSummaryScreenState extends State<SessionSummaryScreen> {
                 style: theme.textTheme.bodyLarge,
               ),
               SizedBox(height: 1.h),
-              Text(
-                'Change from Previous: ${(card['changePercentage'] as double).toStringAsFixed(1)}%',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: (card['changePercentage'] as double) >= 0
-                      ? const Color(0xFF2E7D32)
-                      : const Color(0xFFC62828),
-                ),
+              Builder(
+                builder: (_) {
+                  final changePct = (card['changePercentage'] is double)
+                      ? (card['changePercentage'] as double)
+                      : null;
+                  final changeText = changePct != null
+                      ? '${changePct.toStringAsFixed(1)}%'
+                      : 'N/A';
+                  final changeColor = changePct == null
+                      ? theme.textTheme.bodyMedium?.color
+                      : (changePct >= 0
+                            ? const Color(0xFF2E7D32)
+                            : const Color(0xFFC62828));
+                  return Text(
+                    'Change from Previous: $changeText',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: changeColor,
+                    ),
+                  );
+                },
               ),
               SizedBox(height: 1.h),
               Text(
